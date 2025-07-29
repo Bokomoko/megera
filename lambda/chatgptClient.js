@@ -2,11 +2,16 @@
 // Handler para Alexa Skill integrando com ChatGPT (OpenAI)
 
 
-const https = require('https');
-// Node 22+ já carrega variáveis do .env automaticamente se o arquivo existir
+
+import 'dotenv/config';
+import https from 'https';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+if (!OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY environment variable is not set.');
+}
 const OPENAI_API_HOST = 'api.openai.com';
 const OPENAI_API_PATH = '/v1/chat/completions';
+
 
 function callChatGPT(prompt) {
     return new Promise((resolve, reject) => {
@@ -46,9 +51,13 @@ function callChatGPT(prompt) {
     });
 }
 
-exports.handler = async (event, context) => {
-    const prompt = event.request.intent.slots.Prompt.value;
+export async function handler(event, context) {
+    let prompt;
     try {
+        prompt = event?.request?.intent?.slots?.Prompt?.value;
+        if (!prompt) {
+            throw new Error('Prompt slot is missing in the request.');
+        }
         const gptResponse = await callChatGPT(prompt);
         return {
             version: '1.0',
@@ -72,4 +81,5 @@ exports.handler = async (event, context) => {
             }
         };
     }
-};
+}
+

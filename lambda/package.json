@@ -1,0 +1,18 @@
+{
+    "name": "megera-lambda",
+    "version": "1.0.0",
+    "description": "Lambda handler para skill Alexa integrando com ChatGPT (OpenAI)",
+    "main": "chatgptClient.js",
+    "type": "module",
+    "dependencies": {
+        "dotenv": "^16.4.5"
+    },
+    "scripts": {
+        "deploy": "zip -r function.zip . -x 'node_modules/*' && aws lambda update-function-code --function-name megera-chatgpt --zip-file fileb://function.zip"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "author": "João Eurico",
+    "license": "MIT"
+}
