@@ -1,0 +1,20 @@
+# Ignorar node_modules em qualquer subpasta
+**/node_modules/
+
+# Ignorar arquivos .env em qualquer subpasta
+**/.env
+
+# Ignorar arquivos de log
+*.log
+
+# Ignorar diretórios de cache comuns
+**/.cache/
+**/dist/
+**/build/
+
+# Ignorar arquivos do sistema
+.DS_Store
+Thumbs.db
+
+# Ignorar arquivos de ambiente do VSCode
+.vscode/
