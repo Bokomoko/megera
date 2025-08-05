@@ -26,9 +26,14 @@ Megera é um aplicativo (Skill) para Amazon Alexa que serve como um gateway para
 - Conta e API Key do OpenAI (ChatGPT).
 
 ## Instalação e Configuração
-1. Faça o deploy da skill Megera na sua conta Alexa Developer.
-2. Configure as credenciais da API do ChatGPT no backend da skill.
-3. Habilite a skill "Megera" na sua Alexa.
+
+Para instruções detalhadas de instalação e deploy, consulte o **[Guia de Instalação Completo](skill_install_guide.md)**.
+
+### Resumo dos passos:
+1. Configure sua API Key da OpenAI
+2. Faça o deploy da função Lambda na AWS
+3. Crie e configure a skill no Amazon Developer Console
+4. Configure o endpoint e teste a integração
 
 ## Estrutura do Projeto
 - `lambda/` — Código backend da skill (Node.js ou Python).

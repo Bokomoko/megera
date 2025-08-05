@@ -18,3 +18,4 @@ Thumbs.db
 
 # Ignorar arquivos de ambiente do VSCode
 .vscode/
+.env.aws
