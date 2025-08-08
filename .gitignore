@@ -19,3 +19,7 @@ Thumbs.db
 # Ignorar arquivos de ambiente do VSCode
 .vscode/
 .env.aws
+
+# Artefatos de empacotamento
+*.zip
+function.zip

@@ -7,16 +7,17 @@ import 'dotenv/config';
 import https from 'https';
 
 const apiKey = process.env.OPENAI_API_KEY;
+const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
 if (!apiKey) {
-    console.error('OPENAI_API_KEY não encontrada no .env');
+    console.error('FALHA: OPENAI_API_KEY não encontrada (defina no .env ou ambiente).');
     process.exit(1);
 }
 
-const data = JSON.stringify({
-    model: 'gpt-3.5-turbo',
-    messages: [{ role: 'user', content: 'Diga apenas "ok".' }],
-    max_tokens: 5
+const payload = JSON.stringify({
+    model,
+    messages: [{ role: 'user', content: 'Responda apenas: ok' }],
+    max_tokens: 3
 });
 
 const options = {
@@ -26,26 +27,50 @@ const options = {
     headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'Content-Length': data.length
-    }
+        'Content-Length': Buffer.byteLength(payload),
+        'User-Agent': 'megera-keytest/1.0'
+    },
+    timeout: 10000
 };
+
+console.log('Testando chave OpenAI com modelo', model);
+const started = Date.now();
 
 const req = https.request(options, (res) => {
     let body = '';
     res.on('data', (chunk) => { body += chunk; });
     res.on('end', () => {
+        const ms = Date.now() - started;
+        if (res.statusCode >= 400) {
+            console.error(`FALHA HTTP ${res.statusCode}:`, body);
+            process.exit(2);
+        }
         try {
             const json = JSON.parse(body);
-            console.log('Resposta da API:', json.choices[0].message.content);
+            const text = json.choices?.[0]?.message?.content?.trim();
+            if (!text) {
+                console.error('FALHA: resposta sem conteúdo esperado:', body);
+                process.exit(3);
+            }
+            console.log('SUCESSO em', ms + 'ms:', text);
+            process.exit(0);
         } catch (e) {
-            console.error('Erro ao processar resposta:', e, body);
+            console.error('FALHA parse JSON:', e, body);
+            process.exit(4);
         }
     });
 });
 
 req.on('error', (e) => {
-    console.error('Erro na requisição:', e);
+    console.error('FALHA requisição:', e);
+    process.exit(5);
 });
 
-req.write(data);
+req.on('timeout', () => {
+    console.error('FALHA: timeout');
+    req.destroy();
+    process.exit(6);
+});
+
+req.write(payload);
 req.end();

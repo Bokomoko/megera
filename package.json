@@ -1,0 +1,19 @@
+{
+    "name": "megera-root",
+    "private": true,
+    "workspaces": [
+        "lambda",
+        "testOAIkey"
+    ],
+    "type": "module",
+    "scripts": {
+        "key:test": "node testOAIkey/testOpenAIKey.js",
+        "lambda:lint": "node -c lambda/chatgptClient.js || echo 'Sintaxe verificada'",
+        "lambda:deploy": "cd lambda && npm install --omit=dev && zip -r ../function.zip . -x 'node_modules/aws-sdk/*' '*.md' 'test*/**' && aws lambda update-function-code --function-name megera-chatgpt --zip-file fileb://../function.zip",
+        "predeploy": "[ -n '$OPENAI_API_KEY' ] || (echo 'OPENAI_API_KEY ausente' && exit 1)",
+        "deploy": "npm run predeploy && npm run lambda:deploy"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}

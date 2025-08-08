@@ -51,6 +51,7 @@ node chatgptClient.js
 
 ### 2.2 Criar função Lambda na AWS
 
+**Opção A: Via AWS Console**
 1. Acesse o console AWS Lambda
 2. Clique em "Create function"
 3. Escolha "Author from scratch"
@@ -58,6 +59,70 @@ node chatgptClient.js
    - **Function name**: `megera-chatgpt`
    - **Runtime**: Node.js 18.x
    - **Architecture**: x86_64
+
+**Opção B: Via AWS CLI**
+1. Primeiro, crie um arquivo de política para a função (trust policy):
+```bash
+cat > trust-policy.json << EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "lambda.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+EOF
+```
+
+2. Crie uma role IAM para a função Lambda:
+```bash
+aws iam create-role --role-name megera-lambda-role --assume-role-policy-document file://trust-policy.json
+```
+
+3. Anexe a política básica de execução do Lambda:
+```bash
+aws iam attach-role-policy --role-name megera-lambda-role --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+```
+
+4. Crie o arquivo ZIP com o código (certifique-se de estar no diretório `lambda/`):
+```bash
+cd lambda/
+zip -r ../megera-lambda.zip . -x "node_modules/*"
+cd ..
+```
+
+5. Crie a função Lambda:
+```bash
+aws lambda create-function \
+    --function-name megera-chatgpt \
+    --runtime nodejs18.x \
+    --role arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/megera-lambda-role \
+    --handler chatgptClient.handler \
+    --zip-file fileb://megera-lambda.zip \
+    --timeout 30 \
+    --memory-size 256
+```
+
+6. Configure as variáveis de ambiente:
+```bash
+aws lambda update-function-configuration \
+    --function-name megera-chatgpt \
+    --environment Variables='{OPENAI_API_KEY=sua-chave-openai-aqui}'
+```
+
+7. Adicione permissão para Alexa Skills Kit:
+```bash
+aws lambda add-permission \
+    --function-name megera-chatgpt \
+    --statement-id alexa-skill-trigger \
+    --action lambda:InvokeFunction \
+    --principal alexa-appkit.amazon.com
+```
 
 ### 2.3 Fazer upload do código
 
@@ -72,6 +137,40 @@ zip -r megera-lambda.zip . -x "node_modules/*"
 **Opção B: Via AWS CLI**
 ```bash
 npm run deploy
+```
+
+**Opção C: Deploy completo via CLI (se a função ainda não existe)**
+```bash
+# Prepare o código
+cd lambda/
+npm install
+zip -r ../megera-lambda.zip . -x "node_modules/*"
+cd ..
+
+# Crie a função (se não existe)
+aws lambda create-function \
+    --function-name megera-chatgpt \
+    --runtime nodejs18.x \
+    --role arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/megera-lambda-role \
+    --handler chatgptClient.handler \
+    --zip-file fileb://megera-lambda.zip \
+    --timeout 30 \
+    --memory-size 256 \
+    --environment Variables='{OPENAI_API_KEY=sua-chave-openai-aqui}'
+```
+
+**Opção D: Atualizar função existente via CLI**
+```bash
+# Apenas atualizar o código
+aws lambda update-function-code \
+    --function-name megera-chatgpt \
+    --zip-file fileb://megera-lambda.zip
+
+# Atualizar configuração se necessário
+aws lambda update-function-configuration \
+    --function-name megera-chatgpt \
+    --timeout 30 \
+    --memory-size 256
 ```
 
 ### 2.4 Configurar variáveis de ambiente
@@ -241,6 +340,42 @@ Certifique-se de que estes intents estão configurados:
 - Monitore usage, sessões e erros
 
 ## Manutenção
+
+### Comandos úteis AWS CLI para Lambda
+
+**Listar todas as funções:**
+```bash
+aws lambda list-functions --query 'Functions[].FunctionName' --output table
+```
+
+**Verificar informações da função:**
+```bash
+aws lambda get-function --function-name megera-chatgpt
+```
+
+**Ver logs da função:**
+```bash
+aws logs describe-log-groups --log-group-name-prefix "/aws/lambda/megera-chatgpt"
+aws logs tail "/aws/lambda/megera-chatgpt" --follow
+```
+
+**Invocar função para teste:**
+```bash
+aws lambda invoke \
+    --function-name megera-chatgpt \
+    --payload '{"version":"1.0","session":{"new":true},"request":{"type":"IntentRequest","intent":{"name":"ChatGPTIntent","slots":{"Prompt":{"value":"teste"}}}}}' \
+    response.json
+```
+
+**Deletar função:**
+```bash
+aws lambda delete-function --function-name megera-chatgpt
+```
+
+**Verificar variáveis de ambiente:**
+```bash
+aws lambda get-function-configuration --function-name megera-chatgpt --query 'Environment'
+```
 
 ### Atualizações de código
 1. Modifique o código no diretório `lambda/`
