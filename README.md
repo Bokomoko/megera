@@ -17,11 +17,13 @@ Megera é um aplicativo (Skill) para Amazon Alexa que serve como um gateway para
 - Alexa (via ChatGPT): "A capital da Austrália é Canberra."
 
 ## Funcionalidades
+
 - Integração direta com o ChatGPT.
 - Respostas naturais e contextuais.
 - Fácil ativação por voz.
 
 ## Requisitos
+
 - Conta Amazon com Alexa configurada.
 - Conta e API Key do OpenAI (ChatGPT).
 
@@ -29,18 +31,32 @@ Megera é um aplicativo (Skill) para Amazon Alexa que serve como um gateway para
 
 Para instruções detalhadas de instalação e deploy, consulte o **[Guia de Instalação Completo](skill_install_guide.md)**.
 
-### Resumo dos passos:
+### Resumo dos passos
+
 1. Configure sua API Key da OpenAI
 2. Faça o deploy da função Lambda na AWS
 3. Crie e configure a skill no Amazon Developer Console
 4. Configure o endpoint e teste a integração
 
+### Credenciais da AWS (sem variáveis no projeto)
+
+Este projeto usa as credenciais do AWS CLI configuradas em `~/.aws/credentials`.
+
+- Para escolher o perfil, exporte `AWS_PROFILE` no terminal antes de fazer o deploy:
+
+  - macOS/Linux/zsh:
+    - `export AWS_PROFILE=meu-perfil`
+
+- Os scripts de deploy já detectam automaticamente `AWS_PROFILE` e passam `--profile` para o AWS CLI.
+
 ## Estrutura do Projeto
+
 - `lambda/` — Código backend da skill (Node.js ou Python).
 - `models/` — Modelos de interação de voz (JSON).
 - `README.md` — Este arquivo.
 
 ## Licença
+
 MIT
 
 ---

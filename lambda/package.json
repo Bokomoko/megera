@@ -8,7 +8,7 @@
         "dotenv": "^16.4.5"
     },
     "scripts": {
-        "deploy": "zip -r function.zip . -x 'node_modules/*' && aws lambda update-function-code --function-name megera-chatgpt --zip-file fileb://function.zip"
+        "deploy": "zip -r function.zip . -x 'node_modules/*' && aws lambda update-function-code --function-name megera-chatgpt --zip-file fileb://function.zip ${AWS_PROFILE:+--profile ${AWS_PROFILE}}"
     },
     "engines": {
         "node": ">=18.0.0"

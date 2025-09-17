@@ -10,7 +10,7 @@ Antes de começar, certifique-se de ter:
 - [ ] Conta AWS (Amazon Web Services)
 - [ ] Conta OpenAI com API Key válida
 - [ ] Node.js versão 18+ instalado
-- [ ] AWS CLI configurado
+- [ ] AWS CLI configurado (com credenciais em `~/.aws/credentials`)
 - [ ] Dispositivo Alexa ou app Alexa para testes
 
 ## Parte 1: Configuração da API OpenAI
@@ -26,6 +26,7 @@ Antes de começar, certifique-se de ter:
 ### 1.2 Configurar variáveis de ambiente
 
 1. No diretório `lambda/`, crie um arquivo `.env`:
+
 ```bash
 OPENAI_API_KEY=sua-chave-openai-aqui
 ```
@@ -35,16 +36,19 @@ OPENAI_API_KEY=sua-chave-openai-aqui
 ### 2.1 Preparar o código Lambda
 
 1. Navegue até o diretório lambda:
+
 ```bash
 cd lambda/
 ```
 
 2. Instale as dependências:
+
 ```bash
 npm install
 ```
 
 3. Teste localmente (opcional):
+
 ```bash
 node chatgptClient.js
 ```
@@ -52,6 +56,7 @@ node chatgptClient.js
 ### 2.2 Criar função Lambda na AWS
 
 **Opção A: Via AWS Console**
+
 1. Acesse o console AWS Lambda
 2. Clique em "Create function"
 3. Escolha "Author from scratch"
@@ -61,7 +66,12 @@ node chatgptClient.js
    - **Architecture**: x86_64
 
 **Opção B: Via AWS CLI**
+> Dica: se você usa múltiplas contas/perfis AWS, exporte `AWS_PROFILE` antes dos comandos abaixo para usar as credenciais do arquivo `~/.aws/credentials`.
+>
+> Exemplo: `export AWS_PROFILE=meu-perfil`
+
 1. Primeiro, crie um arquivo de política para a função (trust policy):
+
 ```bash
 cat > trust-policy.json << EOF
 {
@@ -80,16 +90,19 @@ EOF
 ```
 
 2. Crie uma role IAM para a função Lambda:
+
 ```bash
-aws iam create-role --role-name megera-lambda-role --assume-role-policy-document file://trust-policy.json
+aws iam create-role --role-name megera-lambda-role --assume-role-policy-document file://trust-policy.json ${AWS_PROFILE:+--profile ${AWS_PROFILE}}
 ```
 
 3. Anexe a política básica de execução do Lambda:
+
 ```bash
-aws iam attach-role-policy --role-name megera-lambda-role --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+aws iam attach-role-policy --role-name megera-lambda-role --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole ${AWS_PROFILE:+--profile ${AWS_PROFILE}}
 ```
 
 4. Crie o arquivo ZIP com o código (certifique-se de estar no diretório `lambda/`):
+
 ```bash
 cd lambda/
 zip -r ../megera-lambda.zip . -x "node_modules/*"
@@ -97,49 +110,57 @@ cd ..
 ```
 
 5. Crie a função Lambda:
+
 ```bash
 aws lambda create-function \
     --function-name megera-chatgpt \
     --runtime nodejs18.x \
-    --role arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/megera-lambda-role \
+  --role arn:aws:iam::$(aws sts get-caller-identity ${AWS_PROFILE:+--profile ${AWS_PROFILE}} --query Account --output text):role/megera-lambda-role \
     --handler chatgptClient.handler \
     --zip-file fileb://megera-lambda.zip \
     --timeout 30 \
-    --memory-size 256
+  --memory-size 256 ${AWS_PROFILE:+--profile ${AWS_PROFILE}}
 ```
 
 6. Configure as variáveis de ambiente:
+
 ```bash
 aws lambda update-function-configuration \
     --function-name megera-chatgpt \
-    --environment Variables='{OPENAI_API_KEY=sua-chave-openai-aqui}'
+  --environment Variables='{OPENAI_API_KEY=sua-chave-openai-aqui}' ${AWS_PROFILE:+--profile ${AWS_PROFILE}}
 ```
 
 7. Adicione permissão para Alexa Skills Kit:
+
 ```bash
 aws lambda add-permission \
     --function-name megera-chatgpt \
     --statement-id alexa-skill-trigger \
     --action lambda:InvokeFunction \
-    --principal alexa-appkit.amazon.com
+  --principal alexa-appkit.amazon.com ${AWS_PROFILE:+--profile ${AWS_PROFILE}}
 ```
 
 ### 2.3 Fazer upload do código
 
 **Opção A: Via AWS Console**
+
 1. Comprima todos os arquivos do diretório `lambda/`:
+
 ```bash
 zip -r megera-lambda.zip . -x "node_modules/*"
 ```
+
 2. No console Lambda, vá em "Code" > "Upload from" > ".zip file"
 3. Faça upload do arquivo `megera-lambda.zip`
 
 **Opção B: Via AWS CLI**
+
 ```bash
 npm run deploy
 ```
 
 **Opção C: Deploy completo via CLI (se a função ainda não existe)**
+
 ```bash
 # Prepare o código
 cd lambda/
@@ -151,26 +172,27 @@ cd ..
 aws lambda create-function \
     --function-name megera-chatgpt \
     --runtime nodejs18.x \
-    --role arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/megera-lambda-role \
+  --role arn:aws:iam::$(aws sts get-caller-identity ${AWS_PROFILE:+--profile ${AWS_PROFILE}} --query Account --output text):role/megera-lambda-role \
     --handler chatgptClient.handler \
     --zip-file fileb://megera-lambda.zip \
     --timeout 30 \
     --memory-size 256 \
-    --environment Variables='{OPENAI_API_KEY=sua-chave-openai-aqui}'
+  --environment Variables='{OPENAI_API_KEY=sua-chave-openai-aqui}' ${AWS_PROFILE:+--profile ${AWS_PROFILE}}
 ```
 
 **Opção D: Atualizar função existente via CLI**
+
 ```bash
 # Apenas atualizar o código
 aws lambda update-function-code \
     --function-name megera-chatgpt \
-    --zip-file fileb://megera-lambda.zip
+  --zip-file fileb://megera-lambda.zip ${AWS_PROFILE:+--profile ${AWS_PROFILE}}
 
 # Atualizar configuração se necessário
 aws lambda update-function-configuration \
     --function-name megera-chatgpt \
     --timeout 30 \
-    --memory-size 256
+  --memory-size 256 ${AWS_PROFILE:+--profile ${AWS_PROFILE}}
 ```
 
 ### 2.4 Configurar variáveis de ambiente
@@ -240,6 +262,7 @@ aws lambda update-function-configuration \
 ### 3.6 Configurar Built-in Intents
 
 Certifique-se de que estes intents estão configurados:
+
 - `AMAZON.CancelIntent`
 - `AMAZON.HelpIntent`
 - `AMAZON.StopIntent`
@@ -307,23 +330,27 @@ Certifique-se de que estes intents estão configurados:
 
 ## Troubleshooting
 
-### Problemas comuns:
+### Problemas comuns
 
 **Lambda timeout**
+
 - Aumente o timeout para 30 segundos
 - Verifique se a API da OpenAI está respondendo
 
 **Skill não responde**
+
 - Verifique se o ARN está correto
 - Confirme se as variáveis de ambiente estão configuradas
 - Verifique logs no CloudWatch
 
 **Erro de API OpenAI**
+
 - Verifique se a API Key está válida
 - Confirme se há créditos disponíveis na conta OpenAI
 - Verifique rate limits
 
 **Intent não reconhecido**
+
 - Rebuild o modelo de interação
 - Verifique se os sample utterances estão corretos
 - Teste diferentes formas de falar
@@ -331,11 +358,13 @@ Certifique-se de que estes intents estão configurados:
 ## Monitoramento
 
 ### CloudWatch Logs
+
 - Acesse CloudWatch > Log Groups
 - Procure por `/aws/lambda/megera-chatgpt`
 - Monitore logs de erro e performance
 
 ### Métricas Alexa
+
 - No Developer Console, acesse "Analytics"
 - Monitore usage, sessões e erros
 
@@ -344,45 +373,53 @@ Certifique-se de que estes intents estão configurados:
 ### Comandos úteis AWS CLI para Lambda
 
 **Listar todas as funções:**
+
 ```bash
-aws lambda list-functions --query 'Functions[].FunctionName' --output table
+aws lambda list-functions --query 'Functions[].FunctionName' --output table ${AWS_PROFILE:+--profile ${AWS_PROFILE}}
 ```
 
 **Verificar informações da função:**
+
 ```bash
-aws lambda get-function --function-name megera-chatgpt
+aws lambda get-function --function-name megera-chatgpt ${AWS_PROFILE:+--profile ${AWS_PROFILE}}
 ```
 
 **Ver logs da função:**
+
 ```bash
-aws logs describe-log-groups --log-group-name-prefix "/aws/lambda/megera-chatgpt"
-aws logs tail "/aws/lambda/megera-chatgpt" --follow
+aws logs describe-log-groups --log-group-name-prefix "/aws/lambda/megera-chatgpt" ${AWS_PROFILE:+--profile ${AWS_PROFILE}}
+aws logs tail "/aws/lambda/megera-chatgpt" --follow ${AWS_PROFILE:+--profile ${AWS_PROFILE}}
 ```
 
 **Invocar função para teste:**
+
 ```bash
 aws lambda invoke \
     --function-name megera-chatgpt \
     --payload '{"version":"1.0","session":{"new":true},"request":{"type":"IntentRequest","intent":{"name":"ChatGPTIntent","slots":{"Prompt":{"value":"teste"}}}}}' \
-    response.json
+  response.json ${AWS_PROFILE:+--profile ${AWS_PROFILE}}
 ```
 
 **Deletar função:**
+
 ```bash
-aws lambda delete-function --function-name megera-chatgpt
+aws lambda delete-function --function-name megera-chatgpt ${AWS_PROFILE:+--profile ${AWS_PROFILE}}
 ```
 
 **Verificar variáveis de ambiente:**
+
 ```bash
-aws lambda get-function-configuration --function-name megera-chatgpt --query 'Environment'
+aws lambda get-function-configuration --function-name megera-chatgpt --query 'Environment' ${AWS_PROFILE:+--profile ${AWS_PROFILE}}
 ```
 
 ### Atualizações de código
+
 1. Modifique o código no diretório `lambda/`
 2. Execute `npm run deploy` ou faça upload manual
 3. Teste a skill após a atualização
 
 ### Atualização do modelo de interação
+
 1. Modifique intents ou utterances no Developer Console
 2. Clique em "Save Model" > "Build Model"
 3. Teste as mudanças
